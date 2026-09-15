@@ -1,1 +1,7 @@
+build/
+install/
+logs/
+output/
+
+# single files
 *.h5
