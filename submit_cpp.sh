@@ -14,5 +14,5 @@
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
 source scripts/env.leonardo.sh
-./install/bin/cooling_serial ./input/Cooling.in ./output/Cooling_cpp.h5 ./output/Cooling_cpp.csv
+./build/leonardo-a100/cooling_serial ./input/Cooling.in ./output/Cooling_cpp.h5 ./output/Cooling_cpp.csv
 
