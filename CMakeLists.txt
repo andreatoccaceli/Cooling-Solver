@@ -161,7 +161,7 @@ endif()
 
 set(COOLING_SERIAL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/cooling.cpp")
 set(COOLING_OMP_SRC    "${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/cooling_omp.cpp")
-set(COOLING_CUDA_SRC   "${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/cooling.cu")
+set(COOLING_CUDA_SRC   "${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/cooling_cuda.cpp")
 
 if(NOT EXISTS "${COOLING_SERIAL_SRC}")
     message(FATAL_ERROR "Serial source file not found: ${COOLING_SERIAL_SRC}")
