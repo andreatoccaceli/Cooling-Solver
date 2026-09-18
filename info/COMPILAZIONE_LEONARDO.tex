@@ -1,0 +1,368 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage[hidelinks]{hyperref}
+
+\setlength{\emergencystretch}{3em}
+
+\definecolor{codebackground}{RGB}{246,248,250}
+\definecolor{codeframe}{RGB}{208,215,222}
+
+\lstdefinestyle{shell}{
+  language=bash,
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebackground},
+  frame=single,
+  rulecolor=\color{codeframe},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  upquote=true
+}
+
+\title{Cooling Solver\\Compilazione su Leonardo}
+\author{}
+\date{Aggiornata al \today}
+
+\begin{document}
+
+\maketitle
+%\tableofcontents
+
+\section{Scopo}
+
+Questa guida descrive la compilazione manuale del Cooling Solver sul cluster
+Leonardo. Sono mantenuti due profili distinti:
+
+\begin{description}
+  \item[Confronto tra implementazioni] produce file HDF5 da validare e usa
+  opzioni floating-point conservative per ridurre le differenze numeriche;
+  \item[Benchmark dello speed-up] elimina completamente HDF5 e abilita le
+  ottimizzazioni più aggressive appropriate per la CPU Ice Lake e la GPU
+  NVIDIA A100 di Leonardo.
+\end{description}
+
+I due profili producono eseguibili con nomi diversi, per evitare di usare per
+errore una build di validazione durante un benchmark. Tutti i comandi devono
+essere lanciati dalla directory principale del progetto.
+
+\section{Ambiente software}
+
+\subsection{Moduli comuni}
+
+Iniziare da un ambiente riproducibile e caricare NVHPC:
+
+\begin{lstlisting}[style=shell]
+module purge
+module load nvhpc
+
+mkdir -p install/bin
+\end{lstlisting}
+
+\subsection{Modulo aggiuntivo per il confronto HDF5}
+
+Solo per il profilo di confronto è necessario caricare HDF5:
+
+\begin{lstlisting}[style=shell]
+module load hdf5/1.14.3--gcc--12.2.0-spack0.22
+
+HDF5_PREFIX="$(dirname "$(dirname "$(command -v h5c++)")")"
+HDF5_INCLUDE="${HDF5_PREFIX}/include"
+HDF5_LIB="${HDF5_PREFIX}/lib"
+
+\end{lstlisting}
+
+
+\section{Profilo 1: confronto tra implementazioni}
+
+\subsection{Obiettivo del profilo}
+
+Questo profilo serve a confrontare i campi prodotti dalle quattro
+implementazioni. Tutti gli eseguibili:
+
+\begin{itemize}
+  \item sono compilati con lo stesso compilatore \texttt{nvc++};
+  \item supportano la scrittura HDF5;
+  \item usano doppia precisione e opzioni floating-point conservative;
+  \item mantengono \texttt{-O3}, perché il confronto deve comunque essere
+  rappresentativo di una normale build ottimizzata.
+\end{itemize}
+
+Queste opzioni riducono alcune fonti di differenza, ma non garantiscono
+uguaglianza bit-a-bit: l'ordine delle operazioni e delle riduzioni cambia tra
+seriale, OpenMP, OpenACC multicore e GPU.
+
+\subsection{CPU seriale con HDF5}
+
+\begin{lstlisting}[style=shell]
+nvc++ -O3 -std=c++17 \
+  -Kieee \
+  -Mnofma \
+  -DUSE_HDF5=1 \
+  -I"${HDF5_INCLUDE}" \
+  src/cpp/cooling.cpp \
+  -o install/bin/cooling_cpp_compare \
+  -L"${HDF5_LIB}" \
+  -Wl,-rpath,"${HDF5_LIB}" \
+  -lhdf5_cpp -lhdf5 -lz -ldl -lm -lstdc++fs
+\end{lstlisting}
+
+\subsection{CPU OpenMP con HDF5}
+
+\begin{lstlisting}[style=shell]
+nvc++ -O3 -std=c++17 \
+  -mp \
+  -Kieee \
+  -Mnofma \
+  -DUSE_HDF5=1 \
+  -I"${HDF5_INCLUDE}" \
+  src/cpp/cooling_openmp.cpp \
+  -o install/bin/cooling_omp_compare \
+  -L"${HDF5_LIB}" \
+  -Wl,-rpath,"${HDF5_LIB}" \
+  -lhdf5_cpp -lhdf5 -lz -ldl -lm -lstdc++fs
+\end{lstlisting}
+
+\subsection{CPU OpenACC multicore con HDF5}
+
+\begin{lstlisting}[style=shell]
+nvc++ -O3 -std=c++17 \
+  -acc=multicore \
+  -Minfo=accel \
+  -Kieee \
+  -Mnofma \
+  -DUSE_HDF5=1 \
+  -I"${HDF5_INCLUDE}" \
+  src/cpp/cooling_openacc.cpp \
+  -o install/bin/cooling_acc_cpu_compare \
+  -L"${HDF5_LIB}" \
+  -Wl,-rpath,"${HDF5_LIB}" \
+  -lhdf5_cpp -lhdf5 -lz -ldl -lm -lstdc++fs
+\end{lstlisting}
+
+\subsection{GPU OpenACC A100 con HDF5}
+
+\begin{lstlisting}[style=shell]
+nvc++ -O3 -std=c++17 \
+  -acc=gpu \
+  -gpu=cc80,nofma \
+  -Minfo=accel \
+  -Kieee \
+  -Mnofma \
+  -DUSE_HDF5=1 \
+  -I"${HDF5_INCLUDE}" \
+  src/cpp/cooling_openacc.cpp \
+  -o install/bin/cooling_acc_gpu_compare \
+  -L"${HDF5_LIB}" \
+  -Wl,-rpath,"${HDF5_LIB}" \
+  -lhdf5_cpp -lhdf5 -lz -ldl -lm -lstdc++fs
+\end{lstlisting}
+
+In questo caso \texttt{nofma} viene specificato anche dentro \texttt{-gpu},
+affinché la contrazione FMA sia disabilitata esplicitamente nel codice
+eseguito sulla GPU.
+
+
+\section{Profilo 2: benchmark dello speed-up}
+
+\subsection{Obiettivo del profilo}
+
+Queste build servono esclusivamente a misurare i tempi. Non definiscono
+\texttt{USE\_HDF5}, non includono header HDF5 e non collegano librerie HDF5.
+In esecuzione bisogna passare \texttt{none} come secondo argomento e
+\texttt{0} come intervallo di output.
+
+\subsection{CPU seriale ottimizzata}
+
+\begin{lstlisting}[style=shell]
+nvc++ -O3 -fast -tp=icelake -std=c++17 \
+  src/cpp/cooling.cpp \
+  -o install/bin/cooling_cpp_bench \
+  -lstdc++fs
+\end{lstlisting}
+
+\subsection{CPU OpenMP ottimizzata}
+
+\begin{lstlisting}[style=shell]
+nvc++ -O3 -fast -tp=icelake -std=c++17 \
+  -mp \
+  src/cpp/cooling_openmp.cpp \
+  -o install/bin/cooling_omp_bench \
+  -lstdc++fs
+\end{lstlisting}
+
+\subsection{CPU OpenACC multicore ottimizzata}
+
+\begin{lstlisting}[style=shell]
+nvc++ -O3 -fast -tp=icelake -std=c++17 \
+  -acc=multicore \
+  -Minfo=accel \
+  src/cpp/cooling_openacc.cpp \
+  -o install/bin/cooling_acc_cpu_bench \
+  -lstdc++fs
+\end{lstlisting}
+
+\subsection{GPU OpenACC A100 ottimizzata}
+
+\begin{lstlisting}[style=shell]
+nvc++ -O3 -fast -std=c++17 \
+  -acc=gpu \
+  -gpu=cc80,fastmath \
+  -Minfo=accel \
+  src/cpp/cooling_openacc.cpp \
+  -o install/bin/cooling_acc_gpu_bench \
+  -lstdc++fs
+\end{lstlisting}
+
+
+\section{Spiegazione dei flag}
+
+\subsection{Flag comuni}
+
+\begin{description}
+  \item[\texttt{-O3}] abilita un livello elevato di ottimizzazione, incluse
+  trasformazioni aggressive dei loop;
+  \item[\texttt{-std=c++17}] seleziona lo standard C++17 richiesto dal codice;
+  \item[\texttt{-lstdc++fs}] collega il supporto GNU per
+  \texttt{std::filesystem}; è mantenuto per compatibilità con lo stack del
+  cluster;
+  \item[\texttt{-o file}] stabilisce il nome dell'eseguibile prodotto.
+\end{description}
+
+\subsection{Flag di parallelizzazione}
+
+\begin{description}
+  \item[\texttt{-mp}] abilita le direttive OpenMP e collega il runtime OpenMP
+  di NVHPC;
+  \item[\texttt{-acc=multicore}] traduce le direttive OpenACC per eseguirle sui
+  core della CPU;
+  \item[\texttt{-acc=gpu}] traduce le direttive OpenACC generando kernel per
+  GPU NVIDIA;
+  \item[\texttt{-gpu=cc80}] genera codice per compute capability 8.0, cioè
+  l'architettura delle GPU NVIDIA A100 dei nodi Booster di Leonardo;
+  \item[\texttt{-Minfo=accel}] stampa a compilazione conclusa quali regioni e
+  loop sono stati trasformati per il target parallelo. Non introduce overhead
+  durante l'esecuzione.
+\end{description}
+
+\subsection{Flag del profilo di confronto}
+
+\begin{description}
+  \item[\texttt{-Kieee}] richiede un comportamento floating-point più rigoroso
+  rispetto alle regole IEEE e limita alcune trasformazioni algebriche;
+  \item[\texttt{-Mnofma}] impedisce al compilatore host di contrarre una
+  moltiplicazione e una somma in una singola FMA;
+  \item[\texttt{-gpu=cc80,nofma}] seleziona A100 e disabilita FMA anche nel
+  codice dispositivo;
+  \item[\texttt{-DUSE\_HDF5=1}] attiva nel sorgente le sezioni protette da
+  \texttt{\#ifdef USE\_HDF5};
+  \item[\texttt{-I}] aggiunge la directory degli header HDF5;
+  \item[\texttt{-L}] aggiunge la directory delle librerie HDF5 al linker;
+  \item[\texttt{-Wl,-rpath,...}] registra nell'eseguibile il percorso delle
+  librerie HDF5, così il loader può ritrovarle durante il job;
+  \item[\texttt{-lhdf5\_cpp -lhdf5}] collega rispettivamente le API C++ e C di
+  HDF5;
+  \item[\texttt{-lz -ldl -lm}] collega le dipendenze usate dallo stack HDF5:
+  compressione zlib, caricamento dinamico e libreria matematica.
+\end{description}
+
+\subsection{Flag del profilo benchmark}
+
+\begin{description}
+  \item[\texttt{-fast}] abilita il gruppo di ottimizzazioni NVHPC consigliate
+  per le prestazioni. Il contenuto preciso del gruppo può cambiare tra versioni
+  del compilatore;
+  \item[\texttt{-tp=icelake}] genera codice host specifico per le CPU Intel Ice
+  Lake dei nodi Booster, consentendo l'uso delle relative istruzioni vettoriali;
+  \item[\texttt{-gpu=cc80,fastmath}] seleziona A100 e usa implementazioni
+  matematiche GPU più rapide e meno conservative. Può modificare gli ultimi bit
+  dei risultati e non deve essere usato per stabilire la tolleranza del
+  validator.
+\end{description}
+
+Nel profilo benchmark sono intenzionalmente assenti \texttt{-Kieee},
+\texttt{-Mnofma}, \texttt{-DUSE\_HDF5}, i percorsi HDF5 e tutte le librerie
+HDF5. In questo modo la misura non comprende scrittura dei campi né vincoli
+floating-point introdotti esclusivamente per il debug numerico.
+
+
+\section{Selezione del profilo negli script SLURM}
+
+Lo script \texttt{submit\_cpp.sh} può selezionare l'eseguibile seriale corretto
+in base a un argomento passato a \texttt{sbatch}. Poiché i lanci di benchmark
+saranno più frequenti, \texttt{benchmark} è la modalità predefinita: se non si
+specifica alcun argomento viene eseguito \texttt{cooling\_cpp\_bench} senza
+output HDF5.
+
+Prima di inviare il primo job bisogna creare le directory usate per log e
+risultati. In particolare, \texttt{logs/} deve esistere prima di
+\texttt{sbatch}, perché Slurm apre i file di standard output e standard error
+prima di eseguire lo script:
+
+\begin{lstlisting}[style=shell]
+mkdir -p logs output
+\end{lstlisting}
+
+I possibili comandi di lancio sono:
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Comando & Profilo & Eseguibile \\
+\midrule
+\texttt{sbatch submit\_cpp.sh} & benchmark & \texttt{cooling\_cpp\_bench} \\
+\texttt{sbatch submit\_cpp.sh benchmark} & benchmark & \texttt{cooling\_cpp\_bench} \\
+\texttt{sbatch submit\_cpp.sh compare} & confronto & \texttt{cooling\_cpp\_compare} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Nel profilo \texttt{benchmark} lo script passa \texttt{none} al posto del file
+HDF5 e usa un intervallo di output pari a zero. Nel profilo \texttt{compare}
+scrive invece \texttt{output/Cooling\_cpp.h5} ogni 20 time step.
+
+In modo analogo possono essere chiamati gli altri script per i vari casi: 
+\texttt{submit\_omp.sh}, \texttt{submit\_acc\_cpu.sh}, e \texttt{submit\_acc\_gpu.sh}.
+
+\section{Installazione dell'ambiente Python e validazione}
+
+Il validator \texttt{tools/validate\_cooling\_h5.py} usa i moduli Python
+\texttt{h5py} e \texttt{numpy}. Il modulo \texttt{python/3.11.7} di Leonardo
+fornisce l'interprete, ma non garantisce che questi pacchetti siano installati.
+Il progetto usa quindi un virtual environment chiamato
+\texttt{cooling\_venv}, collocato nella directory principale del repository.
+L'installazione deve essere eseguita una volta sola. 
+
+Per creare l'environment si invia il job dalla directory principale del progetto:
+
+\begin{lstlisting}[style=shell]
+sbatch submit_install_pyenv.sh
+\end{lstlisting}
+
+Con le tolleranze definite nello script, lanciare:
+
+\begin{lstlisting}[style=shell]
+sbatch submit_validate.sh
+\end{lstlisting}
+
+
+Durante il confronto, \texttt{/step} viene verificato esattamente, mentre per
+\texttt{/field} viene applicata la condizione
+
+\[
+  \left|u_{\mathrm{cand}}-u_{\mathrm{ref}}\right|
+  \leq
+  \mathrm{ATOL} + \mathrm{RTOL}\,
+  \left|u_{\mathrm{ref}}\right|.
+\]
+
+
+
+\end{document}
