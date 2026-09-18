@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
-#include "utils/types.hpp"
+#include "../utils/types.hpp"
 
 #define CUDA_CHECK(call)                                                     \
     do {                                                                     \
