@@ -14,114 +14,130 @@ python "${VALIDATOR}" \
   --atol="${ATOL}"
 
 echo
-echo "Cpp vs Cuda"
+echo "Cpp vs Acc CPU"
 python "${VALIDATOR}" \
   output/Cooling_cpp.h5 \
-  output/Cooling_cuda.h5 \
+  output/Cooling_acc_cpu.h5 \
   --rtol="${RTOL}" \
   --atol="${ATOL}"
 
 echo
-echo "Cpp vs Python"
+echo "Cpp vs Acc GPU"
 python "${VALIDATOR}" \
   output/Cooling_cpp.h5 \
-  output/Cooling_python.h5 \
+  output/Cooling_acc_gpu.h5 \
   --rtol="${RTOL}" \
   --atol="${ATOL}"
 
 echo
-echo "Cpp vs Numba"
-python "${VALIDATOR}" \
-  output/Cooling_cpp.h5 \
-  output/Cooling_numba.h5 \
-  --rtol="${RTOL}" \
-  --atol="${ATOL}"
+echo "Cpp vs Cuda (to do...)"
+#python "${VALIDATOR}" \
+#  output/Cooling_cpp.h5 \
+#  output/Cooling_cuda.h5 \
+#  --rtol="${RTOL}" \
+#  --atol="${ATOL}"
 
-echo
-echo "Cpp vs NumbaCuda"
-python "${VALIDATOR}" \
-  output/Cooling_cpp.h5 \
-  output/Cooling_numba_cuda.h5 \
-  --rtol="${RTOL}" \
-  --atol="${ATOL}"
+#echo
+#echo "Cpp vs Python"
+#python "${VALIDATOR}" \
+#  output/Cooling_cpp.h5 \
+#  output/Cooling_python.h5 \
+#  --rtol="${RTOL}" \
+#  --atol="${ATOL}"
 
-echo
-echo "Omp vs Cuda"
-python "${VALIDATOR}" \
-  output/Cooling_omp.h5 \
-  output/Cooling_cuda.h5 \
-  --rtol="${RTOL}" \
-  --atol="${ATOL}"
+#echo
+#echo "Cpp vs Numba"
+#python "${VALIDATOR}" \
+#  output/Cooling_cpp.h5 \
+#  output/Cooling_numba.h5 \
+#  --rtol="${RTOL}" \
+#  --atol="${ATOL}"
 
-echo
-echo "Omp vs Python"
-python "${VALIDATOR}" \
-  output/Cooling_omp.h5 \
-  output/Cooling_python.h5 \
-  --rtol="${RTOL}" \
-  --atol="${ATOL}"
+#echo
+#echo "Cpp vs NumbaCuda"
+#python "${VALIDATOR}" \
+#  output/Cooling_cpp.h5 \
+#  output/Cooling_numba_cuda.h5 \
+#  --rtol="${RTOL}" \
+#  --atol="${ATOL}"
 
-echo
-echo "Omp vs Numba"
-python "${VALIDATOR}" \
-  output/Cooling_omp.h5 \
-  output/Cooling_numba.h5 \
-  --rtol="${RTOL}" \
-  --atol="${ATOL}"
+#echo
+#echo "Omp vs Cuda"
+#python "${VALIDATOR}" \
+#  output/Cooling_omp.h5 \
+#  output/Cooling_cuda.h5 \
+#  --rtol="${RTOL}" \
+#  --atol="${ATOL}"
 
-echo
-echo "Omp vs NumbaCuda"
-python "${VALIDATOR}" \
-  output/Cooling_omp.h5 \
-  output/Cooling_numba_cuda.h5 \
-  --rtol="${RTOL}" \
-  --atol="${ATOL}"
+#echo
+#echo "Omp vs Python"
+#python "${VALIDATOR}" \
+#  output/Cooling_omp.h5 \
+#  output/Cooling_python.h5 \
+#  --rtol="${RTOL}" \
+#  --atol="${ATOL}"
 
-echo
-echo "Cuda vs Python"
-python "${VALIDATOR}" \
-  output/Cooling_cuda.h5 \
-  output/Cooling_python.h5 \
-  --rtol="${RTOL}" \
-  --atol="${ATOL}"
+#echo
+#echo "Omp vs Numba"
+#python "${VALIDATOR}" \
+#  output/Cooling_omp.h5 \
+#  output/Cooling_numba.h5 \
+#  --rtol="${RTOL}" \
+#  --atol="${ATOL}"
 
-echo
-echo "Cuda vs Numba"
-python "${VALIDATOR}" \
-  output/Cooling_cuda.h5 \
-  output/Cooling_numba.h5 \
-  --rtol="${RTOL}" \
-  --atol="${ATOL}"
+#echo
+#echo "Omp vs NumbaCuda"
+#python "${VALIDATOR}" \
+#  output/Cooling_omp.h5 \
+#  output/Cooling_numba_cuda.h5 \
+#  --rtol="${RTOL}" \
+#  --atol="${ATOL}"
 
-echo
-echo "Cuda vs NumbaCuda"
-python "${VALIDATOR}" \
-  output/Cooling_cuda.h5 \
-  output/Cooling_numba_cuda.h5 \
-  --rtol="${RTOL}" \
-  --atol="${ATOL}"
+#echo
+#echo "Cuda vs Python"
+#python "${VALIDATOR}" \
+#  output/Cooling_cuda.h5 \
+#  output/Cooling_python.h5 \
+#  --rtol="${RTOL}" \
+#  --atol="${ATOL}"
 
-echo
-echo "Python vs Numba"
-python "${VALIDATOR}" \
-  output/Cooling_python.h5 \
-  output/Cooling_numba.h5 \
-  --rtol="${RTOL}" \
-  --atol="${ATOL}"
+#echo
+#echo "Cuda vs Numba"
+#python "${VALIDATOR}" \
+#  output/Cooling_cuda.h5 \
+#  output/Cooling_numba.h5 \
+#  --rtol="${RTOL}" \
+#  --atol="${ATOL}"
 
-echo
-echo "Python vs NumbaCuda"
-python "${VALIDATOR}" \
-  output/Cooling_python.h5 \
-  output/Cooling_numba_cuda.h5 \
-  --rtol="${RTOL}" \
-  --atol="${ATOL}"
+#echo
+#echo "Cuda vs NumbaCuda"
+#python "${VALIDATOR}" \
+#  output/Cooling_cuda.h5 \
+#  output/Cooling_numba_cuda.h5 \
+#  --rtol="${RTOL}" \
+#  --atol="${ATOL}"
 
-echo
-echo "Numba vs NumbaCuda"
-python "${VALIDATOR}" \
-  output/Cooling_numba.h5 \
-  output/Cooling_numba_cuda.h5 \
-  --rtol="${RTOL}" \
-  --atol="${ATOL}"
+#echo
+#echo "Python vs Numba"
+#python "${VALIDATOR}" \
+#  output/Cooling_python.h5 \
+#  output/Cooling_numba.h5 \
+#  --rtol="${RTOL}" \
+#  --atol="${ATOL}"
+
+#echo
+#echo "Python vs NumbaCuda"
+#python "${VALIDATOR}" \
+#  output/Cooling_python.h5 \
+#  output/Cooling_numba_cuda.h5 \
+#  --rtol="${RTOL}" \
+#  --atol="${ATOL}"
+
+#echo
+#echo "Numba vs NumbaCuda"
+#python "${VALIDATOR}" \
+#  output/Cooling_numba.h5 \
+#  output/Cooling_numba_cuda.h5 \
+#  --rtol="${RTOL}" \
+#  --atol="${ATOL}"
 

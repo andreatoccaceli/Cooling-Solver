@@ -2,6 +2,7 @@ build/
 install/
 logs/
 output/
+cooling_venv/
 
 # single files
 *.h5

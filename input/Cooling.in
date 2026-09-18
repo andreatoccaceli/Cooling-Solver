@@ -28,10 +28,10 @@
 # ============================================================
 
 # Number of grid points in x direction
-4000
+400
 
 # Number of grid points in y direction
-4000
+400
 
 # ============================================================
 # Measured field samples

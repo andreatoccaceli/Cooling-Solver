@@ -13,7 +13,38 @@
 #SBATCH --qos=boost_qos_dbg
 #SBATCH --exclusive
 
+# Use benchmark as default
+MODE="${1:-benchmark}"
+
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
 source scripts/env.leonardo.sh
-./install/bin/cooling_openmp ./input/Cooling.in none ./output/Cooling_omp.csv
 
+INPUT_FILE="./input/Cooling.in"
+
+case "${MODE}" in
+    compare)
+        EXECUTABLE="install/bin/cooling_omp_compare"
+        HDF5_OUTPUT="output/Cooling_omp.h5"
+        CSV_OUTPUT="output/Cooling_omp.csv"
+        OUTPUT_EVERY=20
+        ;;
+
+    benchmark)
+        EXECUTABLE="install/bin/cooling_omp_bench"
+        HDF5_OUTPUT="none"
+        CSV_OUTPUT="output/Cooling_omp_bench.csv"
+        OUTPUT_EVERY=0
+        ;;
+
+    *)
+        echo "[ERROR] Mode not valid: ${MODE}" >&2
+        echo "Use: sbatch submit_omp.sh {compare|benchmark}" >&2
+        exit 2
+        ;;
+esac
+
+"${EXECUTABLE}" \
+    "${INPUT_FILE}" \
+    "${HDF5_OUTPUT}" \
+    "${CSV_OUTPUT}" \
+    "${OUTPUT_EVERY}"
