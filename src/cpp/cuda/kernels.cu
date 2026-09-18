@@ -357,12 +357,12 @@ __global__ void statsPass1PartialKernel(
     double* __restrict__ blockSum, double* __restrict__ blockSumSq,
     double* __restrict__ blockChecksum)
 {
-    extern __shared__ double smem[];
-    double* sMin      = smem;
-    double* sMax      = smem + blockDim.x;
-    double* sSum      = smem + 2 * blockDim.x;
-    double* sSumSq    = smem + 3 * blockDim.x;
-    double* sChecksum = smem + 4 * blockDim.x;
+    extern __shared__ double smem_d[];
+    double* sMin      = smem_d;
+    double* sMax      = smem_d + blockDim.x;
+    double* sSum      = smem_d + 2 * blockDim.x;
+    double* sSumSq    = smem_d + 3 * blockDim.x;
+    double* sChecksum = smem_d + 4 * blockDim.x;
 
     const int t = threadIdx.x;
 
