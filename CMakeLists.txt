@@ -306,7 +306,9 @@ endif()
 # Install
 # ============================================================
 
-install(TARGETS cooling_serial RUNTIME DESTINATION bin)
+if(TARGET cooling_serial)
+    install(TARGETS cooling_serial RUNTIME DESTINATION bin)
+endif()
 
 if(TARGET cooling_omp)
     install(TARGETS cooling_omp RUNTIME DESTINATION bin)
