@@ -349,16 +349,20 @@ int main(int argc, char** argv) {
 
                 if (writer) {
                     ScopedTimer hdf5Timer;
+                    
+
+#ifdef _OPENACC
+                    const std::size_t fieldBytes = totalCells * sizeof(double);
+                    acc_update_self(current, fieldBytes);
+#endif
+
                     if (current == fieldA) {
-#pragma acc update self(fieldA[0:totalCells])               
                         writer->writeFrame(step, fieldStorageA);
                     } else {
-#pragma acc update self(fieldB[0:totalCells])
                         writer->writeFrame(step, fieldStorageB);
                     }
                     hdf5Time += hdf5Timer.elapsedSeconds();
                 }
-
                 ++outputFrames;
             };
 
