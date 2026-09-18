@@ -280,27 +280,26 @@ endif()
 
 # CUDA target: optional
 if(COOLING_CUDA_AVAILABLE)
-    cooling_optional_source(
-        cooling_cuda
-        "${COOLING_CUDA_SRC}"
-        "${COOLING_BUILD_CUDA}"
-        "CUDA"
+    add_executable(cooling_cuda
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/cooling_cuda.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/cuda/kernels.cu"
     )
 
-    if(TARGET cooling_cuda)
-        set_target_properties(cooling_cuda PROPERTIES
-            CUDA_SEPARABLE_COMPILATION ON
-            CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    target_compile_features(cooling_cuda PRIVATE cxx_std_17)
+    cooling_apply_common_settings(cooling_cuda)
+
+    set_target_properties(cooling_cuda PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    )
+
+    if(COOLING_FAST_MATH_CUDA)
+        target_compile_options(cooling_cuda PRIVATE
+            $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>
         )
-
-        if(COOLING_FAST_MATH_CUDA)
-            target_compile_options(cooling_cuda PRIVATE
-                $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>
-            )
-        endif()
-
-        target_compile_definitions(cooling_cuda PRIVATE COOLING_CUDA=1)
     endif()
+
+    target_compile_definitions(cooling_cuda PRIVATE COOLING_CUDA=1)
 endif()
 
 # ============================================================
