@@ -349,10 +349,11 @@ int main(int argc, char** argv) {
 
                 if (writer) {
                     ScopedTimer hdf5Timer;
-#pragma acc update self(current[0:totalCells])
                     if (current == fieldA) {
+#pragma acc update self(fieldA[0:totalCells])               
                         writer->writeFrame(step, fieldStorageA);
                     } else {
+#pragma acc update self(fieldB[0:totalCells])
                         writer->writeFrame(step, fieldStorageB);
                     }
                     hdf5Time += hdf5Timer.elapsedSeconds();
