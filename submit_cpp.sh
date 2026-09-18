@@ -13,7 +13,37 @@
 #SBATCH --qos=boost_qos_dbg
 #SBATCH --exclusive
 
-export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
-source scripts/env.leonardo.sh
-./install/bin/cooling_serial ./input/Cooling.in none ./output/Cooling_cpp.csv
+# Use benchmark as default
+MODE="${1:-benchmark}"
 
+source scripts/env.leonardo.sh
+
+INPUT_FILE="./input/Cooling.in"
+
+case "${MODE}" in
+    compare)
+        EXECUTABLE="install/bin/cooling_cpp_compare"
+        HDF5_OUTPUT="output/Cooling_cpp.h5"
+        CSV_OUTPUT="output/Cooling_cpp.csv"
+        OUTPUT_EVERY=20
+        ;;
+
+    benchmark)
+        EXECUTABLE="install/bin/cooling_cpp_bench"
+        HDF5_OUTPUT="none"
+        CSV_OUTPUT="output/Cooling_cpp_bench.csv"
+        OUTPUT_EVERY=0
+        ;;
+
+    *)
+        echo "[ERROR] Mode not valid: ${MODE}" >&2
+        echo "Use: sbatch submit_cpp.sh {compare|benchmark}" >&2
+        exit 2
+        ;;
+esac
+
+"${EXECUTABLE}" \
+    "${INPUT_FILE}" \
+    "${HDF5_OUTPUT}" \
+    "${CSV_OUTPUT}" \
+    "${OUTPUT_EVERY}"

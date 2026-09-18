@@ -13,7 +13,38 @@
 #SBATCH --qos=boost_qos_dbg
 #SBATCH --exclusive
 
-export ACC_NUM_CORES=${SLURM_CPUS_PER_TASK}
-source scripts/env.leonardo.sh
-./install/bin/cooling_openacc_gpu ./input/Cooling.in none ./output/Cooling_acc_gpu.csv
 
+# Use benchmark as default
+MODE="${1:-benchmark}"
+
+source scripts/env.leonardo.sh
+
+INPUT_FILE="./input/Cooling.in"
+
+case "${MODE}" in
+    compare)
+        EXECUTABLE="install/bin/cooling_acc_gpu_compare"
+        HDF5_OUTPUT="output/Cooling_acc_gpu.h5"
+        CSV_OUTPUT="output/Cooling_acc_gpu.csv"
+        OUTPUT_EVERY=20
+        ;;
+
+    benchmark)
+        EXECUTABLE="install/bin/cooling_acc_gpu_bench"
+        HDF5_OUTPUT="none"
+        CSV_OUTPUT="output/Cooling_acc_gpu_bench.csv"
+        OUTPUT_EVERY=0
+        ;;
+
+    *)
+        echo "[ERROR] Mode not valid: ${MODE}" >&2
+        echo "Use: sbatch submit_acc_gpu.sh {compare|benchmark}" >&2
+        exit 2
+        ;;
+esac
+
+"${EXECUTABLE}" \
+    "${INPUT_FILE}" \
+    "${HDF5_OUTPUT}" \
+    "${CSV_OUTPUT}" \
+    "${OUTPUT_EVERY}"

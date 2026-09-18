@@ -1,4 +1,5 @@
 #!/bin/bash -l
+#SBATCH --account=tra26_poliex
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
 #SBATCH --nodes=1
@@ -13,8 +14,8 @@
 #SBATCH --exclusive
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
-export RTOL=1e-3
-export ATOL=1e-3
+export RTOL=1e-8
+export ATOL=1e-8
 source scripts/env.leonardo.sh
 bash scripts/validate_all.sh
 
