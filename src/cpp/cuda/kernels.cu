@@ -357,12 +357,12 @@ __global__ void statsPass1PartialKernel(
     double* __restrict__ blockSum, double* __restrict__ blockSumSq,
     double* __restrict__ blockChecksum)
 {
-    extern __shared__ double smem_d[];
-    double* sMin      = smem_d;
-    double* sMax      = smem_d + blockDim.x;
-    double* sSum      = smem_d + 2 * blockDim.x;
-    double* sSumSq    = smem_d + 3 * blockDim.x;
-    double* sChecksum = smem_d + 4 * blockDim.x;
+    extern __shared__ double smem_partial_kernel[];
+    double* sMin      = smem_partial_kernel;
+    double* sMax      = smem_partial_kernel + blockDim.x;
+    double* sSum      = smem_partial_kernel + 2 * blockDim.x;
+    double* sSumSq    = smem_partial_kernel + 3 * blockDim.x;
+    double* sChecksum = smem_partial_kernel + 4 * blockDim.x;
 
     const int t = threadIdx.x;
 
@@ -418,12 +418,12 @@ __global__ void statsPass1FinalKernel(
     double* __restrict__ outSum, double* __restrict__ outSumSq,
     double* __restrict__ outChecksum)
 {
-    extern __shared__ double smem[];
-    double* sMin      = smem;
-    double* sMax      = smem + blockDim.x;
-    double* sSum      = smem + 2 * blockDim.x;
-    double* sSumSq    = smem + 3 * blockDim.x;
-    double* sChecksum = smem + 4 * blockDim.x;
+    extern __shared__ double smem_final_kernel[];
+    double* sMin      = smem_final_kernel;
+    double* sMax      = smem_final_kernel + blockDim.x;
+    double* sSum      = smem_final_kernel + 2 * blockDim.x;
+    double* sSumSq    = smem_final_kernel + 3 * blockDim.x;
+    double* sChecksum = smem_final_kernel + 4 * blockDim.x;
 
     const int t = threadIdx.x;
 
@@ -472,8 +472,8 @@ __global__ void statsPass2PartialKernel(
     const double* __restrict__ field, std::size_t n, double mean,
     double* __restrict__ blockSumSqDiff)
 {
-    extern __shared__ double smem[];
-    double* s = smem;
+    extern __shared__ double smem_2_partial_kernel[];
+    double* s = smem_2_partial_kernel;
     const int t = threadIdx.x;
 
     double local = 0.0;
@@ -500,8 +500,8 @@ __global__ void statsPass2FinalKernel(
     const double* __restrict__ blockSumSqDiff, int numBlocks,
     double* __restrict__ outSumSqDiff)
 {
-    extern __shared__ double smem[];
-    double* s = smem;
+    extern __shared__ double smem_2_final_kernel[];
+    double* s = smem_2_final_kernel;
     const int t = threadIdx.x;
 
     double local = 0.0;
