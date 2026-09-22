@@ -263,15 +263,15 @@ int main(int argc, char** argv) {
 
         printRunHeader(cli, cfg, hdf5Compiled);
 #ifdef _OPENACC
-        std::cout << "OpenACC enabled:                yes (spec "
+        std::cout << "OpenACC enabled:               yes (spec "
                   << _OPENACC << ")\n";
         acc_device_t dev_type = acc_get_device_type();
-        if (dev_type == acc_device_multicore){
-		std::cout << "Cpu threads:      "
-		          << acc_get_device_num(dev_type) << '\n';
-        }
+	if (dev_type == 2){ // Running on multicore CPU
+        	std::cout << "Cpu threads:                   "
+			          << std::getenv("ACC_NUM_CORES") << '\n';
+	}
 #else
-        std::cout << "OpenACC enabled:                no; pragmas run serially\n";
+        std::cout << "OpenACC enabled:               no; pragmas run serially\n";
 #endif
 
         std::vector<int> weightStorage(totalCells);
