@@ -13,6 +13,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEVICES = ("acc_cpu", "acc_gpu", "cpp", "omp")
 FIELDS = (
+    "Cpu threads",
     "Grid",
     "Max fractal iterations",
     "Time steps",
@@ -33,7 +34,7 @@ NUMBER = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$")
 
 
 def parse_log(path: Path) -> dict[str, str] | None:
-    """Return one CSV row, or None if the log is not a complete benchmark."""
+    """Return one CSV row, or None if the log is not a benchmark."""
     device = next((name for name in DEVICES if name in path.stem), None)
     if device is None:
         return None
@@ -43,16 +44,16 @@ def parse_log(path: Path) -> dict[str, str] | None:
         return None
 
     values = {key.strip(): value.strip() for key, value in VALUE.findall(content)}
-    missing = [field for field in FIELDS if field not in values]
-    if missing:
-        print(f"Skipping {path}: missing {', '.join(missing)}", file=sys.stderr)
-        return None
+    row = {"Device": device}
+    for field in FIELDS:
+        raw_value = values.get(field, "")
+        if not raw_value or field == "Grid":
+            row[field] = raw_value
+            continue
 
-    row = {"Device": device, "Grid": values["Grid"]}
-    for field in FIELDS[1:]:
-        value = values[field].split()[0] if values[field] else ""
+        value = raw_value.split()[0]
         if not NUMBER.fullmatch(value):
-            print(f"Skipping {path}: invalid {field}: {values[field]!r}", file=sys.stderr)
+            print(f"Skipping {path}: invalid {field}: {raw_value!r}", file=sys.stderr)
             return None
         row[field] = value
     return row
