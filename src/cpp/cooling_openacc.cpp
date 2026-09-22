@@ -265,8 +265,11 @@ int main(int argc, char** argv) {
 #ifdef _OPENACC
         std::cout << "OpenACC enabled:                yes (spec "
                   << _OPENACC << ")\n";
-        std::cout << "OpenACC devices available:      "
-                  << acc_get_num_devices(acc_device_default) << '\n';
+        acc_device_t dev_type = acc_get_device_type();
+        if (dev_type == acc_device_multicore){
+		std::cout << "Cpu threads:      "
+		          << acc_get_device_num(dev_type) << '\n';
+        }
 #else
         std::cout << "OpenACC enabled:                no; pragmas run serially\n";
 #endif
