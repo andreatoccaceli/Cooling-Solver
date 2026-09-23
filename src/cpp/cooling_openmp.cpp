@@ -263,10 +263,8 @@ int main(int argc, char** argv) {
 #ifdef _OPENMP
         std::cout << "OpenMP enabled:                yes (spec "
                   << _OPENMP << ")\n";
-        std::cout << "OpenMP maximum threads:        "
-                  << omp_get_max_threads() << '\n';
-        std::cout << "OpenMP available processors:   "
-                  << omp_get_num_procs() << '\n';
+        std::cout << "Cpu threads:                   "
+                  << std::getenv("OMP_NUM_THREADS") << '\n';
 #else
         std::cout << "OpenMP enabled:                no; pragmas run serially\n";
 #endif
