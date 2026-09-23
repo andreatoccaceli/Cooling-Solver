@@ -57,7 +57,8 @@ essere lanciati dalla directory principale del progetto.
 
 \subsection{Moduli comuni}
 
-Iniziare da un ambiente riproducibile e caricare NVHPC:
+Iniziare da un ambiente riproducibile e caricare NVHPC, che mette a
+disposizione sia i compilatori HPC sia il toolchain CUDA:
 
 \begin{lstlisting}[style=shell]
 module purge
@@ -84,11 +85,12 @@ HDF5_LIB="${HDF5_PREFIX}/lib"
 
 \subsection{Obiettivo del profilo}
 
-Questo profilo serve a confrontare i campi prodotti dalle quattro
+Questo profilo serve a confrontare i campi prodotti dalle cinque
 implementazioni. Tutti gli eseguibili:
 
 \begin{itemize}
-  \item sono compilati con lo stesso compilatore \texttt{nvc++};
+  \item usano \texttt{nvc++} per C++/OpenMP/OpenACC e \texttt{nvcc} per
+  CUDA C++;
   \item supportano la scrittura HDF5;
   \item usano doppia precisione e opzioni floating-point conservative;
   \item mantengono \texttt{-O3}, perché il confronto deve comunque essere
@@ -169,6 +171,29 @@ In questo caso \texttt{nofma} viene specificato anche dentro \texttt{-gpu},
 affinché la contrazione FMA sia disabilitata esplicitamente nel codice
 eseguito sulla GPU.
 
+\subsection{GPU CUDA A100 con HDF5}
+
+\begin{lstlisting}[style=shell]
+nvcc -O3 -std=c++17 \
+  -arch=sm_80 \
+  --fmad=false \
+  -Xcompiler=-fno-fast-math,-ffp-contract=off \
+  -DUSE_HDF5=1 \
+  -I"${HDF5_INCLUDE}" \
+  src/cpp/cooling_cuda.cpp \
+  src/cpp/cuda/kernels.cu \
+  -o install/bin/cooling_cuda_compare \
+  -L"${HDF5_LIB}" \
+  -Xlinker=-rpath,"${HDF5_LIB}" \
+  -lhdf5_cpp -lhdf5 -lz -ldl -lm -lstdc++fs
+\end{lstlisting}
+
+Anche per CUDA la contrazione FMA viene disabilitata esplicitamente: il flag
+\texttt{--fmad=false} agisce sul codice dispositivo, mentre le opzioni passate
+con \texttt{-Xcompiler} rendono conservativa la compilazione del codice host.
+\texttt{nvcc} collega automaticamente il runtime CUDA; \texttt{-Xlinker}
+inoltra invece il percorso runtime HDF5 al linker host.
+
 
 \section{Profilo 2: benchmark dello speed-up}
 
@@ -224,12 +249,12 @@ nvc++ -O3 -fast -std=c++17 \
 \subsection{GPU CUDA A100 ottimizzata}
 
 \begin{lstlisting}[style=shell]
-nvc++ -O3 -fast -std=c++17 \
-  -cuda \
-  -gpu=cc80,fastmath \
+nvcc -O3 -std=c++17 \
+  -arch=sm_80 \
+  --use_fast_math \
   src/cpp/cooling_cuda.cpp \
   src/cpp/cuda/kernels.cu \
-  -o install/bin/cooling_cuda_gpu_bench \
+  -o install/bin/cooling_cuda_bench \
   -lstdc++fs
 \end{lstlisting}
 
@@ -258,6 +283,8 @@ nvc++ -O3 -fast -std=c++17 \
   GPU NVIDIA;
   \item[\texttt{-gpu=cc80}] genera codice per compute capability 8.0, cioè
   l'architettura delle GPU NVIDIA A100 dei nodi Booster di Leonardo;
+  \item[\texttt{-arch=sm\_80}] è l'equivalente \texttt{nvcc} che genera
+  codice CUDA per le GPU NVIDIA A100;
   \item[\texttt{-Minfo=accel}] stampa a compilazione conclusa quali regioni e
   loop sono stati trasformati per il target parallelo. Non introduce overhead
   durante l'esecuzione.
@@ -272,12 +299,19 @@ nvc++ -O3 -fast -std=c++17 \
   moltiplicazione e una somma in una singola FMA;
   \item[\texttt{-gpu=cc80,nofma}] seleziona A100 e disabilita FMA anche nel
   codice dispositivo;
+  \item[\texttt{--fmad=false}] disabilita la contrazione FMA nel codice
+  dispositivo compilato con \texttt{nvcc};
+  \item[\texttt{-Xcompiler=-fno-fast-math,-ffp-contract=off}] inoltra al
+  compilatore host opzioni floating-point conservative;
   \item[\texttt{-DUSE\_HDF5=1}] attiva nel sorgente le sezioni protette da
   \texttt{\#ifdef USE\_HDF5};
   \item[\texttt{-I}] aggiunge la directory degli header HDF5;
   \item[\texttt{-L}] aggiunge la directory delle librerie HDF5 al linker;
-  \item[\texttt{-Wl,-rpath,...}] registra nell'eseguibile il percorso delle
-  librerie HDF5, così il loader può ritrovarle durante il job;
+  \item[\texttt{-Wl,-rpath,...}] registra nell'eseguibile compilato con
+  \texttt{nvc++} il percorso delle librerie HDF5, così il loader può
+  ritrovarle durante il job;
+  \item[\texttt{-Xlinker=-rpath,...}] realizza la stessa operazione nei
+  comandi \texttt{nvcc}, inoltrando le opzioni al linker host;
   \item[\texttt{-lhdf5\_cpp -lhdf5}] collega rispettivamente le API C++ e C di
   HDF5;
   \item[\texttt{-lz -ldl -lm}] collega le dipendenze usate dallo stack HDF5:
@@ -295,7 +329,9 @@ nvc++ -O3 -fast -std=c++17 \
   \item[\texttt{-gpu=cc80,fastmath}] seleziona A100 e usa implementazioni
   matematiche GPU più rapide e meno conservative. Può modificare gli ultimi bit
   dei risultati e non deve essere usato per stabilire la tolleranza del
-  validator.
+  validator;
+  \item[\texttt{--use\_fast\_math}] è l'opzione equivalente usata da
+  \texttt{nvcc} nel benchmark CUDA.
 \end{description}
 
 Nel profilo benchmark sono intenzionalmente assenti \texttt{-Kieee},

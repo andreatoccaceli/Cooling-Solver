@@ -338,13 +338,18 @@ void advanceTemperatureFieldCUDA(
     CUDA_CHECK(cudaGetLastError());
 
     const int threads = 256;
-    const int blocks = static_cast<int>((width * height + threads - 1) / threads);
-
-    // Each thread handles one boundary cell, so we launch enough threads to cover all boundary cells.
-    applyLeftRightBoundaryKernel<<<blocks, threads>>>(d_next, width, height);
+    const std::size_t leftRightCells = 2 * (height - 2);
+    const int leftRightBlocks = static_cast<int>(
+        (leftRightCells + threads - 1) / threads);
+    applyLeftRightBoundaryKernel<<<leftRightBlocks, threads>>>(
+        d_next, width, height);
     CUDA_CHECK(cudaGetLastError());
 
-    applyTopBottomBoundaryKernel<<<blocks, threads>>>(d_next, width, height);
+    const std::size_t topBottomCells = 2 * width;
+    const int topBottomBlocks = static_cast<int>(
+        (topBottomCells + threads - 1) / threads);
+    applyTopBottomBoundaryKernel<<<topBottomBlocks, threads>>>(
+        d_next, width, height);
     CUDA_CHECK(cudaGetLastError());
 }
 

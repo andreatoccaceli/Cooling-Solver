@@ -1,15 +1,6 @@
-/*
-================================================================================
-Cooling Field Solver - OpenMP version
-================================================================================
-*/
+/* Cooling Field Solver - OpenMP version. */
 
-// Import the stable parser, command-line handling, output writer, and utility
-// types from the baseline. Rename its entry point so this file can provide its
-// own OpenMP-aware driver without duplicating that infrastructure.
-#define main coolingSerialReferenceMain
-#include "cooling.cpp"
-#undef main
+#include "utils/common.hpp"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -21,6 +12,7 @@ void computeFractalWeightsOpenMp(
     const SimulationConfig& cfg,
     const GridMapping& mapping
 ) {
+    (void)totalCells;
     const index_t width = static_cast<index_t>(cfg.gridWidth);
     const index_t height = static_cast<index_t>(cfg.gridHeight);
     const double x0 = mapping.x0;
@@ -86,6 +78,7 @@ void initializeTemperatureFieldOpenMp(
     int minWeight,
     int maxWeight
 ) {
+    (void)totalCells;
     const index_t width = static_cast<index_t>(cfg.gridWidth);
     const index_t height = static_cast<index_t>(cfg.gridHeight);
     const double x0 = mapping.x0;
@@ -122,6 +115,7 @@ void advanceTemperatureFieldOpenMp(
     std::size_t height,
     const UpdateCoefficients& coeffs
 ) {
+    (void)totalCells;
     const index_t w = static_cast<index_t>(width);
     const index_t h = static_cast<index_t>(height);
     const double coeffX = coeffs.coeffX;
@@ -286,13 +280,6 @@ int main(int argc, char** argv) {
         }
         writeStatisticsHeader(csv);
 
-        std::unique_ptr<TimeSeriesWriter> writer;
-        if (cli.writeHdf5) {
-            writer = std::make_unique<TimeSeriesWriter>(
-                cli.h5File, cfg.gridWidth, cfg.gridHeight, 32, 256, 256
-            );
-        }
-
         ScopedTimer totalTimer;
         double weightTime = 0.0;
         double weightRangeTime = 0.0;
@@ -302,9 +289,11 @@ int main(int argc, char** argv) {
         double csvTime = 0.0;
         double hdf5Time = 0.0;
         int outputFrames = 0;
+        bool hasLastWrittenStep = false;
+        int lastWrittenStep = -1;
+        int minWeight = 0;
+        int maxWeight = 0;
         FieldStatistics finalStats{};
-
-        ScopedTimer loopTimer;
 
         {
             ScopedTimer weightTimer;
@@ -316,8 +305,8 @@ int main(int argc, char** argv) {
             ScopedTimer rangeTimer;
             const auto range =
                 computeWeightRangeOpenMp(weight, totalCells);
-            const int minWeight = range.first;
-            const int maxWeight = range.second;
+            minWeight = range.first;
+            maxWeight = range.second;
             weightRangeTime = rangeTimer.elapsedSeconds();
 
             ScopedTimer initTimer;
@@ -333,7 +322,16 @@ int main(int argc, char** argv) {
             );
             initTime = initTimer.elapsedSeconds();
 
+            std::unique_ptr<TimeSeriesWriter> writer;
+            if (cli.writeHdf5) {
+                writer = std::make_unique<TimeSeriesWriter>(
+                    cli.h5File, cfg.gridWidth, cfg.gridHeight, 32, 256, 256
+                );
+            }
+
             auto writeOutputFrame = [&](int step) {
+                if (hasLastWrittenStep && step == lastWrittenStep) return;
+
                 ScopedTimer statsTimer;
                 const FieldStatistics stats =
                     computeFieldStatisticsOpenMp(current, totalCells);
@@ -355,7 +353,11 @@ int main(int argc, char** argv) {
                 }
 
                 ++outputFrames;
+                hasLastWrittenStep = true;
+                lastWrittenStep = step;
             };
+
+            ScopedTimer loopTimer;
 
             if (shouldWriteStep(0, cfg.timeSteps, cfg.outputEvery)) {
                 writeOutputFrame(0);
@@ -381,40 +383,35 @@ int main(int argc, char** argv) {
                 }
             }
 
-            std::cout << "Weight range:                  "
-                      << minWeight << " ... " << maxWeight << '\n';
-        }
+            if (writer) writer->close();
+            csv.flush();
 
-        if (writer) {
-            writer->close();
-        }
-        csv.flush();
+            const double loopWallTime = loopTimer.elapsedSeconds();
+            const double totalWallTime = totalTimer.elapsedSeconds();
+            const double updates =
+                static_cast<double>(cfg.gridWidth - 2)
+                * static_cast<double>(cfg.gridHeight - 2)
+                * static_cast<double>(cfg.timeSteps);
 
-        const double loopWallTime = loopTimer.elapsedSeconds();
-        const double totalWallTime = totalTimer.elapsedSeconds();
-        const double updates =
-            static_cast<double>(cfg.gridWidth - 2)
-            * static_cast<double>(cfg.gridHeight - 2)
-            * static_cast<double>(cfg.timeSteps);
+            std::cout << "Weight field time:             " << weightTime << " s\n";
+            std::cout << "Weight range reduction time:   " << weightRangeTime << " s\n";
+            std::cout << "Initialization time:           " << initTime << " s\n";
+            std::cout << "Pure dynamics compute time:    " << pureDynamicsTime << " s\n";
+            std::cout << "Statistics time:               " << statisticsTime << " s\n";
+            std::cout << "CSV write time:                " << csvTime << " s\n";
+            std::cout << "HDF5 write time:               " << hdf5Time << " s\n";
+            std::cout << "Dynamics loop wall time:       " << loopWallTime << " s\n";
+            std::cout << "Total measured wall time:      " << totalWallTime << " s\n";
+            std::cout << "Output frames:                 " << outputFrames << '\n';
 
-        std::cout << "Weight field time:             " << weightTime << " s\n";
-        std::cout << "Weight range reduction time:   " << weightRangeTime << " s\n";
-        std::cout << "Initialization time:           " << initTime << " s\n";
-        std::cout << "Pure dynamics compute time:    " << pureDynamicsTime << " s\n";
-        std::cout << "Statistics time:               " << statisticsTime << " s\n";
-        std::cout << "CSV write time:                " << csvTime << " s\n";
-        std::cout << "HDF5 write time:               " << hdf5Time << " s\n";
-        std::cout << "Dynamics loop wall time:       " << loopWallTime << " s\n";
-        std::cout << "Total measured wall time:      " << totalWallTime << " s\n";
-        std::cout << "Output frames:                 " << outputFrames << '\n';
-
-        if (cfg.timeSteps > 0 && pureDynamicsTime > 0.0) {
-            std::cout << "Pure dynamics performance:     "
-                      << updates / pureDynamicsTime / 1.0e9 << " GLUP/s\n";
-        }
-        if (cfg.timeSteps > 0 && loopWallTime > 0.0) {
-            std::cout << "Loop end-to-end performance:   "
-                      << updates / loopWallTime / 1.0e9 << " GLUP/s\n";
+            if (cfg.timeSteps > 0 && pureDynamicsTime > 0.0) {
+                std::cout << "Pure dynamics performance:     "
+                          << updates / pureDynamicsTime / 1.0e9 << " GLUP/s\n";
+            }
+            if (cfg.timeSteps > 0 && loopWallTime > 0.0) {
+                std::cout << "Loop end-to-end performance:   "
+                          << updates / loopWallTime / 1.0e9 << " GLUP/s\n";
+            }
         }
 
         std::cout << "Mean discrepancy:              "
@@ -425,6 +422,8 @@ int main(int argc, char** argv) {
         std::cout << "Final std.dev.:                " << finalStats.stdDev << '\n';
         std::cout << "Final L2 norm:                 " << finalStats.l2Norm << '\n';
         std::cout << "Final checksum:                " << finalStats.checksum << '\n';
+        std::cout << "Weight range:                  "
+                  << minWeight << " ... " << maxWeight << '\n';
         std::cout << "\nSimulation completed successfully.\n";
         return 0;
 

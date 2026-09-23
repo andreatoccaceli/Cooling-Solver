@@ -1,15 +1,6 @@
-/*
-================================================================================
-Cooling Field Solver - OpenACC version
-================================================================================
-*/
+/* Cooling Field Solver - OpenACC version. */
 
-// Import the stable parser, command-line handling, output writer, and utility
-// types from the baseline. Rename its entry point so this file can provide its
-// own OpenACC-aware driver without duplicating that infrastructure.
-#define main coolingSerialReferenceMain
-#include "cooling.cpp"
-#undef main
+#include "utils/common.hpp"
 
 #ifdef _OPENACC
 #include <openacc.h>
@@ -21,6 +12,7 @@ void computeFractalWeightsOpenAcc(
     const SimulationConfig& cfg,
     const GridMapping& mapping
 ) {
+    (void)totalCells;
     const index_t width = static_cast<index_t>(cfg.gridWidth);
     const index_t height = static_cast<index_t>(cfg.gridHeight);
     const double x0 = mapping.x0;
@@ -86,6 +78,7 @@ void initializeTemperatureFieldOpenAcc(
     int minWeight,
     int maxWeight
 ) {
+    (void)totalCells;
     const index_t width = static_cast<index_t>(cfg.gridWidth);
     const index_t height = static_cast<index_t>(cfg.gridHeight);
     const double x0 = mapping.x0;
@@ -123,6 +116,7 @@ void advanceTemperatureFieldOpenAcc(
     std::size_t height,
     const UpdateCoefficients& coeffs
 ) {
+    (void)totalCells;
     const index_t w = static_cast<index_t>(width);
     const index_t h = static_cast<index_t>(height);
     const double coeffX = coeffs.coeffX;
@@ -291,14 +285,6 @@ int main(int argc, char** argv) {
         }
         writeStatisticsHeader(csv);
 
-        std::unique_ptr<TimeSeriesWriter> writer;
-        if (cli.writeHdf5) {
-            writer = std::make_unique<TimeSeriesWriter>(
-                cli.h5File, cfg.gridWidth, cfg.gridHeight, 32, 256, 256
-            );
-        }
-
-        ScopedTimer totalTimer;
         double weightTime = 0.0;
         double weightRangeTime = 0.0;
         double initTime = 0.0;
@@ -306,13 +292,21 @@ int main(int argc, char** argv) {
         double statisticsTime = 0.0;
         double csvTime = 0.0;
         double hdf5Time = 0.0;
+        double loopWallTime = 0.0;
+        double totalWallTime = 0.0;
         int outputFrames = 0;
+        bool hasLastWrittenStep = false;
+        int lastWrittenStep = -1;
+        int minWeight = 0;
+        int maxWeight = 0;
         FieldStatistics finalStats{};
-
-        ScopedTimer loopTimer;
 
 #pragma acc data create(weight[0:totalCells], fieldA[0:totalCells], fieldB[0:totalCells])
         {
+            // Match the serial timer: storage allocation/data-region setup is
+            // outside the measured interval.
+            ScopedTimer totalTimer;
+
             ScopedTimer weightTimer;
             computeFractalWeightsOpenAcc(
                 weight, totalCells, cfg, mapping
@@ -322,8 +316,8 @@ int main(int argc, char** argv) {
             ScopedTimer rangeTimer;
             const auto range =
                 computeWeightRangeOpenAcc(weight, totalCells);
-            const int minWeight = range.first;
-            const int maxWeight = range.second;
+            minWeight = range.first;
+            maxWeight = range.second;
             weightRangeTime = rangeTimer.elapsedSeconds();
 
             ScopedTimer initTimer;
@@ -339,7 +333,16 @@ int main(int argc, char** argv) {
             );
             initTime = initTimer.elapsedSeconds();
 
+            std::unique_ptr<TimeSeriesWriter> writer;
+            if (cli.writeHdf5) {
+                writer = std::make_unique<TimeSeriesWriter>(
+                    cli.h5File, cfg.gridWidth, cfg.gridHeight, 32, 256, 256
+                );
+            }
+
             auto writeOutputFrame = [&](int step) {
+                if (hasLastWrittenStep && step == lastWrittenStep) return;
+
                 ScopedTimer statsTimer;
                 const FieldStatistics stats =
                     computeFieldStatisticsOpenAcc(current, totalCells);
@@ -352,8 +355,6 @@ int main(int argc, char** argv) {
 
                 if (writer) {
                     ScopedTimer hdf5Timer;
-                    
-
 #ifdef _OPENACC
                     const std::size_t fieldBytes = totalCells * sizeof(double);
                     acc_update_self(current, fieldBytes);
@@ -367,7 +368,13 @@ int main(int argc, char** argv) {
                     hdf5Time += hdf5Timer.elapsedSeconds();
                 }
                 ++outputFrames;
+                hasLastWrittenStep = true;
+                lastWrittenStep = step;
             };
+
+            // As in the serial baseline, this starts after initialization and
+            // includes statistics plus CSV/HDF5 finalization.
+            ScopedTimer loopTimer;
 
             if (shouldWriteStep(0, cfg.timeSteps, cfg.outputEvery)) {
                 writeOutputFrame(0);
@@ -393,17 +400,13 @@ int main(int argc, char** argv) {
                 }
             }
 
-            std::cout << "Weight range:                  "
-                      << minWeight << " ... " << maxWeight << '\n';
+            if (writer) writer->close();
+            csv.flush();
+
+            loopWallTime = loopTimer.elapsedSeconds();
+            totalWallTime = totalTimer.elapsedSeconds();
         }
 
-        if (writer) {
-            writer->close();
-        }
-        csv.flush();
-
-        const double loopWallTime = loopTimer.elapsedSeconds();
-        const double totalWallTime = totalTimer.elapsedSeconds();
         const double updates =
             static_cast<double>(cfg.gridWidth - 2)
             * static_cast<double>(cfg.gridHeight - 2)
@@ -437,6 +440,8 @@ int main(int argc, char** argv) {
         std::cout << "Final std.dev.:                " << finalStats.stdDev << '\n';
         std::cout << "Final L2 norm:                 " << finalStats.l2Norm << '\n';
         std::cout << "Final checksum:                " << finalStats.checksum << '\n';
+        std::cout << "Weight range:                  "
+                  << minWeight << " ... " << maxWeight << '\n';
         std::cout << "\nSimulation completed successfully.\n";
         return 0;
 
