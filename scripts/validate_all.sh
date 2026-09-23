@@ -30,12 +30,12 @@ python "${VALIDATOR}" \
   --atol="${ATOL}"
 
 echo
-echo "Cpp vs Cuda (to do...)"
-#python "${VALIDATOR}" \
-#  output/Cooling_cpp.h5 \
-#  output/Cooling_cuda.h5 \
-#  --rtol="${RTOL}" \
-#  --atol="${ATOL}"
+echo "Cpp vs Cuda"
+python "${VALIDATOR}" \
+  output/Cooling_cpp.h5 \
+  output/Cooling_cuda.h5 \
+  --rtol="${RTOL}" \
+  --atol="${ATOL}"
 
 #echo
 #echo "Cpp vs Python"
