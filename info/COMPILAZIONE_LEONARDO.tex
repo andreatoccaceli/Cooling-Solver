@@ -228,7 +228,7 @@ nvc++ -O3 -fast -std=c++17 \
   -cuda \
   -gpu=cc80,fastmath \
   src/cpp/cooling_cuda.cpp \
-  src/cpp/kernels.cu \
+  src/cpp/cuda/kernels.cu \
   -o install/bin/cooling_cuda_gpu_bench \
   -lstdc++fs
 \end{lstlisting}
