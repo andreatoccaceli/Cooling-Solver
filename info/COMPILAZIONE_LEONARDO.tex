@@ -221,6 +221,17 @@ nvc++ -O3 -fast -std=c++17 \
   -lstdc++fs
 \end{lstlisting}
 
+\subsection{GPU CUDA A100 ottimizzata}
+
+\begin{lstlisting}[style=shell]
+nvc++ -O3 -fast -std=c++17 \
+  -cuda \
+  -gpu=cc80,fastmath \
+  src/cpp/cooling_cuda.cpp \
+  src/cpp/kernels.cu \
+  -o install/bin/cooling_cuda_gpu_bench \
+  -lstdc++fs
+\end{lstlisting}
 
 \section{Spiegazione dei flag}
 
