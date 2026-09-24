@@ -28,7 +28,7 @@ from matplotlib.ticker import FuncFormatter  # noqa: E402
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_INPUT = PROJECT_ROOT / "logs" / "benchmark.csv"
+DEFAULT_INPUT = Path(__file__).resolve().with_name("benchmark.csv")
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "output" / "figures"
 
 BASELINE_GRID = (4000, 4000)

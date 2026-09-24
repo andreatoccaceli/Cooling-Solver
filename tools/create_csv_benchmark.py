@@ -11,6 +11,7 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_OUTPUT = Path(__file__).resolve().with_name("benchmark.csv")
 DEVICES = ("cpp", "acc_cpu", "omp", "acc_gpu", "cuda")
 FIELDS = (
     "Cpu threads",
@@ -66,8 +67,8 @@ def main() -> None:
         help="directory containing .out logs (default: project logs directory)",
     )
     parser.add_argument(
-        "--output", type=Path, default=PROJECT_ROOT / "logs" / "benchmark.csv",
-        help="output CSV path (default: logs/benchmark.csv)",
+        "--output", type=Path, default=DEFAULT_OUTPUT,
+        help="output CSV path (default: tools/benchmark.csv)",
     )
     args = parser.parse_args()
 
