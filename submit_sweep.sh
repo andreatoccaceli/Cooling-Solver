@@ -6,7 +6,7 @@
 #SBATCH --partition=boost_usr_prod
 #SBATCH --time=0:30:00
 #SBATCH --mem=0
-#SBATCH --job-name=run_cuda_cooling
+#SBATCH --job-name=run_sweep_cooling
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
 #SBATCH --gres=gpu:1
